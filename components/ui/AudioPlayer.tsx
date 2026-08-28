@@ -1,8 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Pause, Play } from "lucide-react";
+import { AlertCircle, Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface AudioPlayerProps {
@@ -11,29 +10,38 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({
-  src = "/audio/demo.mp3",
+  src = "/audio/pomor-guide.mp3",
   title = "Рассказ о водорослевом промысле",
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || error) return;
 
     if (isPlaying) {
       audio.pause();
-    } else {
-      void audio.play();
+      setIsPlaying(false);
+      return;
     }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying]);
+
+    try {
+      await audio.play();
+      setIsPlaying(true);
+      setError(null);
+    } catch {
+      setIsPlaying(false);
+      setError("Не удалось воспроизвести аудио. Попробуйте обновить страницу.");
+    }
+  }, [isPlaying, error]);
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    if (!audio || !duration) return;
+    if (!audio || !duration || error) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
@@ -45,21 +53,31 @@ export function AudioPlayer({
     if (!audio) return;
 
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onLoadedMetadata = () => {
+      setDuration(audio.duration);
+      setError(null);
+    };
     const onEnded = () => setIsPlaying(false);
+    const onError = () => {
+      setIsPlaying(false);
+      setError("Аудиофайл недоступен. Запустите: python scripts/generate-pomor-audio.py");
+    };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
 
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
     };
-  }, []);
+  }, [src]);
 
   const formatTime = (time: number) => {
+    if (!Number.isFinite(time)) return "0:00";
     const mins = Math.floor(time / 60);
     const secs = Math.floor(time % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -73,11 +91,19 @@ export function AudioPlayer({
 
       <p className="mb-4 text-sm font-medium text-text-muted">{title}</p>
 
+      {error && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={togglePlay}
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md shadow-accent/30 transition-transform hover:scale-105"
+          disabled={!!error}
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md shadow-accent/30 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={isPlaying ? "Пауза" : "Воспроизвести"}
         >
           {isPlaying ? (
@@ -93,26 +119,26 @@ export function AudioPlayer({
               const base = 8 + (i % 5) * 3;
               const peak = 16 + (i % 7) * 2;
               return (
-              <motion.div
-                key={i}
-                className="w-1 rounded-full bg-accent"
-                animate={
-                  isPlaying
-                    ? {
-                        height: [base, peak, base],
-                      }
-                    : { height: 8 }
-                }
-                transition={
-                  isPlaying
-                    ? {
-                        duration: 0.4 + (i % 4) * 0.1,
-                        repeat: Infinity,
-                        repeatType: "reverse",
-                      }
-                    : { duration: 0.3 }
-                }
-              />
+                <motion.div
+                  key={i}
+                  className="w-1 rounded-full bg-accent"
+                  animate={
+                    isPlaying
+                      ? {
+                          height: [base, peak, base],
+                        }
+                      : { height: 8 }
+                  }
+                  transition={
+                    isPlaying
+                      ? {
+                          duration: 0.4 + (i % 4) * 0.1,
+                          repeat: Infinity,
+                          repeatType: "reverse",
+                        }
+                      : { duration: 0.3 }
+                  }
+                />
               );
             })}
           </div>

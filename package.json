@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate:audio": "python scripts/generate-pomor-audio.py"
   },
   "dependencies": {
     "clsx": "^2.1.1",
