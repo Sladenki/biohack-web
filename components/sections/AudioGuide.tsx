@@ -4,8 +4,8 @@ import { PomorGuideCharacter } from "@/components/PomorGuideCharacter";
 import { AudioPlayer } from "@/components/ui/AudioPlayer";
 import { Card } from "@/components/ui/Card";
 import { Section, SectionHeader } from "@/components/ui/Section";
-import { Play } from "lucide-react";
-import { useRef } from "react";
+import { Pause, Play } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const quotes = [
   {
@@ -26,22 +26,56 @@ const quotes = [
 ];
 
 function QuoteCard({
+  id,
   text,
   context,
   audio,
+  activeId,
+  onActiveChange,
 }: {
+  id: string;
   text: string;
   context: string;
   audio: string;
+  activeId: string | null;
+  onActiveChange: (id: string | null) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const isPlaying = activeId === id;
 
-  const playQuote = () => {
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || activeId === id) return;
+    el.pause();
+  }, [activeId, id]);
+
+  useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
+
+    const onEnded = () => onActiveChange(null);
+    el.addEventListener("ended", onEnded);
+    return () => el.removeEventListener("ended", onEnded);
+  }, [onActiveChange]);
+
+  const togglePlay = useCallback(async () => {
+    const el = audioRef.current;
+    if (!el) return;
+
+    if (isPlaying) {
+      el.pause();
+      onActiveChange(null);
+      return;
+    }
+
+    onActiveChange(id);
     el.currentTime = 0;
-    void el.play();
-  };
+    try {
+      await el.play();
+    } catch {
+      onActiveChange(null);
+    }
+  }, [id, isPlaying, onActiveChange]);
 
   return (
     <Card hover={false}>
@@ -51,11 +85,15 @@ function QuoteCard({
         <p className="text-sm text-accent">{context}</p>
         <button
           type="button"
-          onClick={playQuote}
+          onClick={togglePlay}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent transition-colors hover:bg-accent hover:text-white"
-          aria-label={`Послушать: ${context}`}
+          aria-label={isPlaying ? `Пауза: ${context}` : `Послушать: ${context}`}
         >
-          <Play className="h-4 w-4 ml-0.5" />
+          {isPlaying ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4 ml-0.5" />
+          )}
         </button>
       </div>
     </Card>
@@ -63,6 +101,8 @@ function QuoteCard({
 }
 
 export function AudioGuide() {
+  const [activeQuoteId, setActiveQuoteId] = useState<string | null>(null);
+
   return (
     <Section id="audioguide" className="bg-bg-light">
       <SectionHeader
@@ -96,7 +136,13 @@ export function AudioGuide() {
 
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {quotes.map((quote) => (
-          <QuoteCard key={quote.context} {...quote} />
+          <QuoteCard
+            key={quote.context}
+            id={quote.context}
+            activeId={activeQuoteId}
+            onActiveChange={setActiveQuoteId}
+            {...quote}
+          />
         ))}
       </div>
     </Section>
