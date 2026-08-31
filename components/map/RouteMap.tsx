@@ -44,11 +44,9 @@ export default function RouteMap({ points }: RouteMapProps) {
       zoom={8}
       className="h-[400px] w-full lg:h-[500px]"
       scrollWheelZoom={false}
+      attributionControl={false}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <MapBoundsUpdater points={points} />
       {polylinePositions.length > 1 && (
         <Polyline
